@@ -89,7 +89,7 @@ Pushes to `main` auto-deploy to GitHub Pages in ~30 seconds via the workflow in 
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Use freely, modify freely, redistribute freely.
+GPL-3.0 — see [LICENSE](LICENSE). Use freely, modify freely, redistribute freely — keep it free and share-alike.
 
 ## Related
 
