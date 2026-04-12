@@ -1,50 +1,61 @@
 import { useState } from 'react';
 import { useObrReady, useRole } from './lib/obr';
-import { rollTraitCheck, type DieType, type TraitResult } from './lib/dice';
+import { rollTraitCheck, rollDamage, type DieType, type TraitResult, type DamageResult } from './lib/dice';
+import { DieIcon } from './lib/DieIcon';
 
+type Mode = 'trait' | 'damage';
 const DIE_OPTIONS: DieType[] = [4, 6, 8, 10, 12];
 
-interface LogEntry {
-  id: number;
-  name: string;
-  result: TraitResult;
-  time: string;
-}
+interface TraitLog { kind: 'trait'; id: number; result: TraitResult; time: string }
+interface DamageLog { kind: 'damage'; id: number; result: DamageResult; time: string }
+type LogEntry = TraitLog | DamageLog;
 
 export default function App() {
   const ready = useObrReady();
   const role = useRole(ready);
 
-  const [name, setName] = useState('Fighting');
+  const [mode, setMode] = useState<Mode>('trait');
   const [traitDie, setTraitDie] = useState<DieType>(8);
-  const [wild, setWild] = useState(true);
   const [modifier, setModifier] = useState(0);
   const [tn, setTn] = useState(4);
   const [mapPenalty, setMapPenalty] = useState(0);
-  const [lastRoll, setLastRoll] = useState<TraitResult | null>(null);
+
+  // Damage
+  const [dmgDice, setDmgDice] = useState<DieType[]>([6, 6]);
+  const [dmgMod, setDmgMod] = useState(0);
+  const [bonusD6, setBonusD6] = useState(false);
+
+  const [lastTrait, setLastTrait] = useState<TraitResult | null>(null);
+  const [lastDamage, setLastDamage] = useState<DamageResult | null>(null);
   const [log, setLog] = useState<LogEntry[]>([]);
+  const [shakeKey, setShakeKey] = useState(0);
 
   if (!ready) return <div className="status">Connecting to Owlbear Rodeo…</div>;
   if (!role) return <div className="status">Loading…</div>;
 
-  const handleRoll = () => {
-    const result = rollTraitCheck({
-      traitDie,
-      wild,
-      modifier: modifier + mapPenalty,
-      tn,
-    });
-    setLastRoll(result);
-    setLog((prev) => [
-      {
-        id: Date.now(),
-        name: name || 'Roll',
-        result,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      },
-      ...prev,
-    ].slice(0, 8));
+  const pushLog = (entry: LogEntry) => setLog((prev) => [entry, ...prev].slice(0, 8));
+  const now = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const handleTraitRoll = (wild: boolean) => {
+    const result = rollTraitCheck({ traitDie, wild, modifier: modifier + mapPenalty, tn });
+    setLastTrait(result);
+    setLastDamage(null);
+    setShakeKey((k) => k + 1);
+    pushLog({ kind: 'trait', id: Date.now(), result, time: now() });
   };
+
+  const handleDamageRoll = () => {
+    const result = rollDamage({ dice: dmgDice, modifier: dmgMod, bonusD6 });
+    setLastDamage(result);
+    setLastTrait(null);
+    setShakeKey((k) => k + 1);
+    pushLog({ kind: 'damage', id: Date.now(), result, time: now() });
+  };
+
+  const addDmgDie = () => setDmgDice((d) => (d.length < 4 ? [...d, 6] : d));
+  const removeDmgDie = (i: number) => setDmgDice((d) => d.filter((_, idx) => idx !== i));
+  const setDmgDie = (i: number, v: DieType) =>
+    setDmgDice((d) => d.map((x, idx) => (idx === i ? v : x)));
 
   return (
     <div className="panel">
@@ -53,93 +64,153 @@ export default function App() {
         <span className="role-badge">{role}</span>
       </header>
 
-      <div className="form">
-        <label className="row">
-          <span>Trait</span>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Fighting"
-          />
-        </label>
-
-        <div className="row">
-          <span>Die</span>
-          <div className="btn-group">
-            {DIE_OPTIONS.map((d) => (
-              <button
-                key={d}
-                className={traitDie === d ? 'btn active' : 'btn'}
-                onClick={() => setTraitDie(d)}
-              >
-                d{d}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="row">
-          <span>Wild</span>
-          <label className="toggle">
-            <input type="checkbox" checked={wild} onChange={(e) => setWild(e.target.checked)} />
-            <span>Wild Card (+d6)</span>
-          </label>
-        </div>
-
-        <div className="row split">
-          <label className="mini">
-            <span>Mod</span>
-            <input
-              type="number"
-              value={modifier}
-              onChange={(e) => setModifier(Number(e.target.value) || 0)}
-            />
-          </label>
-          <label className="mini">
-            <span>TN</span>
-            <input
-              type="number"
-              value={tn}
-              onChange={(e) => setTn(Number(e.target.value) || 4)}
-            />
-          </label>
-        </div>
-
-        <div className="row">
-          <span>MAP</span>
-          <div className="btn-group">
-            {[0, -2, -4].map((p) => (
-              <button
-                key={p}
-                className={mapPenalty === p ? 'btn active' : 'btn'}
-                onClick={() => setMapPenalty(p)}
-              >
-                {p === 0 ? 'None' : p}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <button className="roll-btn" onClick={handleRoll}>
-          Roll
+      <div className="mode-switch">
+        <button
+          className={mode === 'trait' ? 'mode active' : 'mode'}
+          onClick={() => setMode('trait')}
+        >
+          Trait
+        </button>
+        <button
+          className={mode === 'damage' ? 'mode active damage' : 'mode'}
+          onClick={() => setMode('damage')}
+        >
+          Damage
         </button>
       </div>
 
-      {lastRoll && <RollResult result={lastRoll} name={name} />}
+      {mode === 'trait' ? (
+        <>
+          <div className="form">
+            <div className="row">
+              <span>Die</span>
+              <div className="btn-group">
+                {DIE_OPTIONS.map((d) => (
+                  <button
+                    key={d}
+                    className={traitDie === d ? 'btn active' : 'btn'}
+                    onClick={() => setTraitDie(d)}
+                  >
+                    d{d}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="row split">
+              <label className="mini">
+                <span>Mod</span>
+                <input
+                  type="number"
+                  value={modifier}
+                  onChange={(e) => setModifier(Number(e.target.value) || 0)}
+                />
+              </label>
+              <label className="mini">
+                <span>TN</span>
+                <input
+                  type="number"
+                  value={tn}
+                  onChange={(e) => setTn(Number(e.target.value) || 4)}
+                />
+              </label>
+            </div>
+
+            <div className="row">
+              <span>MAP</span>
+              <div className="btn-group">
+                {[0, -2, -4].map((p) => (
+                  <button
+                    key={p}
+                    className={mapPenalty === p ? 'btn active' : 'btn'}
+                    onClick={() => setMapPenalty(p)}
+                  >
+                    {p === 0 ? 'None' : p}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="roll-pair">
+              <button className="roll-btn wild" onClick={() => handleTraitRoll(true)}>
+                Roll Wild
+                <span className="hint">trait + d6</span>
+              </button>
+              <button className="roll-btn extra" onClick={() => handleTraitRoll(false)}>
+                Roll Extra
+                <span className="hint">trait only</span>
+              </button>
+            </div>
+          </div>
+
+          {lastTrait && <TraitResultView key={shakeKey} result={lastTrait} />}
+        </>
+      ) : (
+        <>
+          <div className="form">
+            <div className="mode-hint">DAMAGE — all dice add together</div>
+
+            <div className="dmg-dice">
+              {dmgDice.map((d, i) => (
+                <div key={i} className="dmg-die-row">
+                  <div className="btn-group">
+                    {DIE_OPTIONS.map((opt) => (
+                      <button
+                        key={opt}
+                        className={d === opt ? 'btn active' : 'btn'}
+                        onClick={() => setDmgDie(i, opt)}
+                      >
+                        d{opt}
+                      </button>
+                    ))}
+                  </div>
+                  {dmgDice.length > 1 && (
+                    <button className="remove" onClick={() => removeDmgDie(i)} title="Remove">
+                      ×
+                    </button>
+                  )}
+                </div>
+              ))}
+              {dmgDice.length < 4 && (
+                <button className="add-die" onClick={addDmgDie}>
+                  + add die
+                </button>
+              )}
+            </div>
+
+            <div className="row split">
+              <label className="mini">
+                <span>Mod</span>
+                <input
+                  type="number"
+                  value={dmgMod}
+                  onChange={(e) => setDmgMod(Number(e.target.value) || 0)}
+                />
+              </label>
+              <label className="toggle">
+                <input
+                  type="checkbox"
+                  checked={bonusD6}
+                  onChange={(e) => setBonusD6(e.target.checked)}
+                />
+                <span>+d6 (raise)</span>
+              </label>
+            </div>
+
+            <button className="roll-btn damage" onClick={handleDamageRoll}>
+              Roll Damage
+            </button>
+          </div>
+
+          {lastDamage && <DamageResultView key={shakeKey} result={lastDamage} />}
+        </>
+      )}
 
       {log.length > 0 && (
         <div className="log">
           <div className="log-header">Recent</div>
           {log.map((entry) => (
-            <div key={entry.id} className="log-entry">
-              <span className="log-name">{entry.name}</span>
-              <span className={`log-outcome ${outcomeClass(entry.result)}`}>
-                {outcomeLabel(entry.result)}
-              </span>
-              <span className="log-total">{entry.result.finalTotal}</span>
-              <span className="log-time">{entry.time}</span>
-            </div>
+            <LogRow key={entry.id} entry={entry} />
           ))}
         </div>
       )}
@@ -147,38 +218,71 @@ export default function App() {
   );
 }
 
-function outcomeClass(r: TraitResult): string {
+function LogRow({ entry }: { entry: LogEntry }) {
+  if (entry.kind === 'trait') {
+    const r = entry.result;
+    return (
+      <div className="log-entry">
+        <span className="log-name">{r.wild ? 'Wild' : 'Extra'}</span>
+        <span className={`log-outcome ${traitOutcomeClass(r)}`}>{traitOutcomeLabel(r)}</span>
+        <span className="log-total">{r.finalTotal}</span>
+        <span className="log-time">{entry.time}</span>
+      </div>
+    );
+  }
+  return (
+    <div className="log-entry">
+      <span className="log-name">Damage</span>
+      <span className="log-outcome damage">{entry.result.dice.map((d) => `d${d.die}`).join('+')}</span>
+      <span className="log-total">{entry.result.total}</span>
+      <span className="log-time">{entry.time}</span>
+    </div>
+  );
+}
+
+function traitOutcomeClass(r: TraitResult) {
   if (r.criticalFailure) return 'crit';
   if (r.raises > 0) return 'raise';
   if (r.success) return 'success';
   return 'fail';
 }
 
-function outcomeLabel(r: TraitResult): string {
+function traitOutcomeLabel(r: TraitResult) {
   if (r.criticalFailure) return 'CRIT FAIL';
   if (r.raises > 0) return `+${r.raises} raise${r.raises > 1 ? 's' : ''}`;
   if (r.success) return 'Success';
   return 'Failed';
 }
 
-function DieChain({ die, chain, total, aced }: { die: number; chain: number[]; total: number; aced: boolean }) {
+function DieChain({
+  die,
+  chain,
+  total,
+  aced,
+}: {
+  die: DieType;
+  chain: number[];
+  total: number;
+  aced: boolean;
+}) {
   return (
     <div className={`die-chain ${aced ? 'aced' : ''}`}>
-      <span className="die-label">d{die}</span>
-      <span className="die-rolls">
+      <div className="die-visual">
         {chain.map((n, i) => (
-          <span key={i} className={n === die ? 'roll ace' : 'roll'}>
-            {n}
-            {i < chain.length - 1 && <span className="arrow">→</span>}
-          </span>
+          <DieIcon key={i} die={die} value={n} aced={n === die} shaking size={36} />
         ))}
-      </span>
-      <span className="die-total">= {total}</span>
+      </div>
+      {chain.length > 1 && (
+        <div className="chain-math">
+          {chain.join(' + ')} = <strong>{total}</strong>
+        </div>
+      )}
+      {chain.length === 1 && <div className="chain-math single">= <strong>{total}</strong></div>}
     </div>
   );
 }
 
-function RollResult({ result, name }: { result: TraitResult; name: string }) {
+function TraitResultView({ result }: { result: TraitResult }) {
   const { trait, wild, modifier, tn, best, finalTotal, success, raises, criticalFailure } = result;
 
   const bannerClass = criticalFailure
@@ -191,21 +295,54 @@ function RollResult({ result, name }: { result: TraitResult; name: string }) {
 
   return (
     <div className="result">
-      <div className="result-name">{name || 'Roll'}</div>
       <div className="dice-display">
-        <div className={best === 'trait' ? 'picked' : ''}>
-          <DieChain {...trait} />
-          {best === 'trait' && <span className="best-badge">BEST</span>}
+        <div className={best === 'trait' ? 'die-row picked' : 'die-row'}>
+          <div className="die-row-label">Trait</div>
+          <DieChain die={trait.die} chain={trait.chain} total={trait.total} aced={trait.aced} />
+          {best === 'trait' && <span className="best-tag">BEST</span>}
         </div>
         {wild && (
-          <div className={best === 'wild' ? 'picked' : ''}>
-            <DieChain {...wild} />
-            {best === 'wild' && <span className="best-badge">BEST</span>}
+          <div className={best === 'wild' ? 'die-row picked' : 'die-row'}>
+            <div className="die-row-label">Wild</div>
+            <DieChain die={wild.die} chain={wild.chain} total={wild.total} aced={wild.aced} />
+            {best === 'wild' && <span className="best-tag">BEST</span>}
           </div>
         )}
       </div>
       <div className="calc">
-        {best === 'trait' ? trait.total : wild!.total}
+        Use best: <strong>{best === 'trait' ? trait.total : wild!.total}</strong>
+        {modifier !== 0 && (
+          <>
+            {' '}
+            <span className={modifier > 0 ? 'mod-plus' : 'mod-minus'}>
+              {modifier > 0 ? '+' : ''}
+              {modifier}
+            </span>
+          </>
+        )}
+        {' = '}
+        <strong className="final">{finalTotal}</strong> <span className="muted">vs TN {tn}</span>
+      </div>
+      <div className={bannerClass}>{traitOutcomeLabel(result)}</div>
+    </div>
+  );
+}
+
+function DamageResultView({ result }: { result: DamageResult }) {
+  const { dice, modifier, total } = result;
+  return (
+    <div className="result">
+      <div className="dice-display">
+        {dice.map((r, i) => (
+          <div key={i} className="die-row">
+            <div className="die-row-label">d{r.die}</div>
+            <DieChain die={r.die} chain={r.chain} total={r.total} aced={r.aced} />
+          </div>
+        ))}
+      </div>
+      <div className="calc">
+        <span className="muted">Sum:</span>{' '}
+        {dice.map((r) => r.total).join(' + ')}
         {modifier !== 0 && (
           <span className={modifier > 0 ? 'mod-plus' : 'mod-minus'}>
             {' '}
@@ -213,9 +350,10 @@ function RollResult({ result, name }: { result: TraitResult; name: string }) {
             {modifier}
           </span>
         )}
-        {' '}= <strong>{finalTotal}</strong> <span className="muted">vs TN {tn}</span>
+        {' = '}
+        <strong className="final">{total}</strong>
       </div>
-      <div className={bannerClass}>{outcomeLabel(result)}</div>
+      <div className="banner damage-banner">Damage: {total}</div>
     </div>
   );
 }
