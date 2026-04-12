@@ -73,6 +73,7 @@ Shipped:
 - ✅ Polyhedral dice with shake animation
 
 Planned:
+- Tooltips on MAP label and buttons — explain "Multi-Action Penalty" on hover of `MAP`, and per-button tooltips (`None` = "one action, no penalty", `-2` = "two actions — −2 to all", `-4` = "three actions — −4 to all"). Matches the edge-abbreviation tooltip pattern from Savage Deck.
 - Better sound design (current tones are synthesised — may replace with recorded samples)
 - Integration with [Savage Deck](https://github.com/fumbletable/savage-deck) (click combatant → roll their trait)
 - GM session-long modifier presets (weather, cover, illumination)
