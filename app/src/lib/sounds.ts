@@ -1,4 +1,5 @@
-// Tiny Web Audio synth for dice feedback — no asset files needed
+// Procedural dice-clack synth — multiple short percussive impacts to simulate
+// dice hitting a surface. No asset files needed.
 
 let ctx: AudioContext | null = null;
 function audio(): AudioContext {
@@ -10,66 +11,56 @@ function audio(): AudioContext {
   return ctx;
 }
 
-function tone(freq: number, start: number, duration: number, gain = 0.15, type: OscillatorType = 'sine') {
+// One short percussive clack: bandpass-filtered noise burst + short inharmonic
+// resonance. Sounds roughly like wood/plastic hitting a hard surface.
+function clack(startOffset: number, pitch: number, gain: number) {
   const c = audio();
-  const osc = c.createOscillator();
-  const g = c.createGain();
-  osc.type = type;
-  osc.frequency.setValueAtTime(freq, c.currentTime + start);
-  g.gain.setValueAtTime(0, c.currentTime + start);
-  g.gain.linearRampToValueAtTime(gain, c.currentTime + start + 0.01);
-  g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + start + duration);
-  osc.connect(g).connect(c.destination);
-  osc.start(c.currentTime + start);
-  osc.stop(c.currentTime + start + duration + 0.05);
-}
+  const now = c.currentTime + startOffset;
 
-function noise(start: number, duration: number, gain = 0.1) {
-  const c = audio();
-  const buf = c.createBuffer(1, c.sampleRate * duration, c.sampleRate);
+  // Noise burst — the "tick" transient
+  const dur = 0.06;
+  const buf = c.createBuffer(1, c.sampleRate * dur, c.sampleRate);
   const data = buf.getChannelData(0);
-  for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+  for (let i = 0; i < data.length; i++) {
+    const t = i / data.length;
+    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, 3);
+  }
   const src = c.createBufferSource();
   src.buffer = buf;
-  const g = c.createGain();
-  g.gain.value = gain;
-  const filter = c.createBiquadFilter();
-  filter.type = 'highpass';
-  filter.frequency.value = 2000;
-  src.connect(filter).connect(g).connect(c.destination);
-  src.start(c.currentTime + start);
+  const bp = c.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = pitch * 1.5;
+  bp.Q.value = 2;
+  const g1 = c.createGain();
+  g1.gain.setValueAtTime(gain * 0.8, now);
+  g1.gain.exponentialRampToValueAtTime(0.001, now + dur);
+  src.connect(bp).connect(g1).connect(c.destination);
+  src.start(now);
+
+  // Short resonant tone — the "clack" body
+  const osc = c.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(pitch, now);
+  osc.frequency.exponentialRampToValueAtTime(pitch * 0.7, now + 0.04);
+  const g2 = c.createGain();
+  g2.gain.setValueAtTime(gain * 0.5, now);
+  g2.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+  osc.connect(g2).connect(c.destination);
+  osc.start(now);
+  osc.stop(now + 0.07);
 }
 
 export const sounds = {
   shake() {
-    noise(0, 0.3, 0.08);
-  },
-  ace() {
-    // bright bell: two high tones
-    tone(880, 0, 0.25, 0.12, 'triangle');
-    tone(1320, 0.05, 0.3, 0.08, 'triangle');
-  },
-  success() {
-    // C → E (happy upward)
-    tone(523, 0, 0.12, 0.1, 'sine');
-    tone(659, 0.1, 0.2, 0.1, 'sine');
-  },
-  raise() {
-    // C → E → G (triumphant)
-    tone(523, 0, 0.1, 0.1, 'triangle');
-    tone(659, 0.08, 0.1, 0.1, 'triangle');
-    tone(784, 0.16, 0.25, 0.12, 'triangle');
-  },
-  fail() {
-    // minor descending
-    tone(392, 0, 0.15, 0.08, 'sine');
-    tone(330, 0.12, 0.25, 0.08, 'sine');
-  },
-  crit() {
-    // dissonant low rumble
-    tone(110, 0, 0.4, 0.15, 'sawtooth');
-    tone(116, 0, 0.4, 0.12, 'sawtooth');
-    noise(0.05, 0.35, 0.06);
+    // 3-5 clacks with random timing and pitch — simulates dice bouncing
+    const count = 3 + Math.floor(Math.random() * 3);
+    let t = 0;
+    for (let i = 0; i < count; i++) {
+      const pitch = 400 + Math.random() * 500; // 400–900 Hz, random per clack
+      const gain = 0.12 + Math.random() * 0.08;
+      clack(t, pitch, gain);
+      t += 0.04 + Math.random() * 0.08;
+    }
   },
 };
 

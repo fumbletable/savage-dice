@@ -85,14 +85,6 @@ export default function App() {
     setLastDamage(null);
     setShakeKey((k) => k + 1);
     playSound('shake', soundOn);
-    const aced = result.trait.aced || (result.wild?.aced ?? false);
-    setTimeout(() => {
-      if (result.criticalFailure) playSound('crit', soundOn);
-      else if (result.raises > 0) playSound('raise', soundOn);
-      else if (result.success) playSound('success', soundOn);
-      else playSound('fail', soundOn);
-      if (aced) playSound('ace', soundOn);
-    }, 350);
     emit({ kind: 'trait', result, ...baseMeta() });
   };
 
@@ -102,8 +94,6 @@ export default function App() {
     setLastTrait(null);
     setShakeKey((k) => k + 1);
     playSound('shake', soundOn);
-    const anyAced = result.dice.some((d) => d.aced);
-    if (anyAced) setTimeout(() => playSound('ace', soundOn), 350);
     emit({ kind: 'damage', result, ...baseMeta() });
   };
 
