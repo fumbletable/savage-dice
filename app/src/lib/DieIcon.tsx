@@ -43,6 +43,6 @@ const shapes: Record<DieType, string> = {
   4:  '50,8 92,82 8,82',                                // triangle (tetrahedron)
   6:  '15,15 85,15 85,85 15,85',                        // square (cube)
   8:  '50,5 92,50 50,95 8,50',                          // diamond (octahedron)
-  10: '50,4 84,26 78,72 50,96 22,72 16,26',             // elongated hex — classic d10 profile
-  12: '50,6 79,14 95,40 89,72 68,93 32,93 11,72 5,40 21,14', // 9-sided — reads as dodec
+  10: '50,5 90,35 75,92 25,92 10,35',                   // pentagon
+  12: '50,5 88,28 88,72 50,95 12,72 12,28',             // hexagon
 };
