@@ -17,10 +17,10 @@ body { margin: 0; padding: 0; }
 #root { min-height: 100vh; }
 
 .panel {
-  padding: 10px 12px;
+  padding: 8px 10px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 7px;
 }
 
 header {
@@ -32,6 +32,17 @@ header {
 }
 
 h1 { font-size: 15px; margin: 0; font-weight: 600; }
+
+.header-right { display: flex; align-items: center; gap: 8px; }
+.sound-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  opacity: 0.7;
+}
+.sound-btn:hover { opacity: 1; }
 
 .role-badge {
   font-size: 10px;
@@ -76,7 +87,7 @@ h1 { font-size: 15px; margin: 0; font-weight: 600; }
 .mode.active.damage { color: var(--red); }
 
 /* Form */
-.form { display: flex; flex-direction: column; gap: 8px; }
+.form { display: flex; flex-direction: column; gap: 6px; }
 
 .row {
   display: flex;
@@ -126,10 +137,10 @@ h1 { font-size: 15px; margin: 0; font-weight: 600; }
   background: #232327;
   border: 1px solid #2e2e33;
   color: #c8c8ce;
-  padding: 5px 0;
+  padding: 4px 0;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   font-family: inherit;
 }
@@ -198,20 +209,20 @@ h1 { font-size: 15px; margin: 0; font-weight: 600; }
 
 /* Mode hint */
 .mode-hint {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--red);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   text-align: center;
-  padding: 4px;
+  padding: 3px;
   background: rgba(232, 122, 122, 0.08);
   border-radius: 4px;
   font-weight: 600;
 }
 
 /* Damage dice */
-.dmg-dice { display: flex; flex-direction: column; gap: 6px; }
-.dmg-die-row { display: flex; gap: 6px; align-items: center; }
+.dmg-dice { display: flex; flex-direction: column; gap: 4px; }
+.dmg-die-row { display: flex; gap: 4px; align-items: center; }
 .remove {
   background: #2e2e33;
   border: none;
@@ -256,8 +267,8 @@ h1 { font-size: 15px; margin: 0; font-weight: 600; }
   position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 8px;
+  gap: 8px;
+  padding: 4px 6px;
   border-radius: 4px;
   background: #1a1a1d;
 }
@@ -413,13 +424,13 @@ h1 { font-size: 15px; margin: 0; font-weight: 600; }
 .private-toggle {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
+  gap: 5px;
+  padding: 3px 6px;
   background: rgba(232, 122, 122, 0.08);
-  border: 1px solid rgba(232, 122, 122, 0.25);
+  border: 1px solid rgba(232, 122, 122, 0.2);
   border-radius: 4px;
-  font-size: 11px;
-  color: #c8c8ce;
+  font-size: 10px;
+  color: #a8a8ae;
   cursor: pointer;
 }
 .private-toggle input { margin: 0; }

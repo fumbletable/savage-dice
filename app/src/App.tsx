@@ -3,6 +3,7 @@ import OBR from '@owlbear-rodeo/sdk';
 import { useObrReady, useSelf, BROADCAST_CHANNEL } from './lib/obr';
 import { rollTraitCheck, rollDamage, type DieType, type TraitResult, type DamageResult } from './lib/dice';
 import { DieIcon } from './lib/DieIcon';
+import { playSound } from './lib/sounds';
 
 type Mode = 'trait' | 'damage';
 const DIE_OPTIONS: DieType[] = [4, 6, 8, 10, 12];
@@ -28,6 +29,18 @@ export default function App() {
 
   // GM private toggle
   const [privateRoll, setPrivateRoll] = useState(false);
+
+  // Sound
+  const [soundOn, setSoundOn] = useState(() => {
+    const saved = localStorage.getItem('savage-dice.sound');
+    return saved === null ? true : saved === 'true';
+  });
+  const toggleSound = () => {
+    setSoundOn((v) => {
+      localStorage.setItem('savage-dice.sound', String(!v));
+      return !v;
+    });
+  };
 
   const [lastTrait, setLastTrait] = useState<TraitResult | null>(null);
   const [lastDamage, setLastDamage] = useState<DamageResult | null>(null);
@@ -71,6 +84,15 @@ export default function App() {
     setLastTrait(result);
     setLastDamage(null);
     setShakeKey((k) => k + 1);
+    playSound('shake', soundOn);
+    const aced = result.trait.aced || (result.wild?.aced ?? false);
+    setTimeout(() => {
+      if (result.criticalFailure) playSound('crit', soundOn);
+      else if (result.raises > 0) playSound('raise', soundOn);
+      else if (result.success) playSound('success', soundOn);
+      else playSound('fail', soundOn);
+      if (aced) playSound('ace', soundOn);
+    }, 350);
     emit({ kind: 'trait', result, ...baseMeta() });
   };
 
@@ -79,6 +101,9 @@ export default function App() {
     setLastDamage(result);
     setLastTrait(null);
     setShakeKey((k) => k + 1);
+    playSound('shake', soundOn);
+    const anyAced = result.dice.some((d) => d.aced);
+    if (anyAced) setTimeout(() => playSound('ace', soundOn), 350);
     emit({ kind: 'damage', result, ...baseMeta() });
   };
 
@@ -91,7 +116,12 @@ export default function App() {
     <div className="panel">
       <header>
         <h1>Savage Dice</h1>
-        <span className="role-badge">{role}</span>
+        <div className="header-right">
+          <button className="sound-btn" onClick={toggleSound} title={soundOn ? 'Sound on' : 'Sound off'}>
+            {soundOn ? '🔊' : '🔇'}
+          </button>
+          <span className="role-badge">{role}</span>
+        </div>
       </header>
 
       <div className="mode-switch">
@@ -319,7 +349,7 @@ function DieChain({
     <div className={`die-chain ${aced ? 'aced' : ''}`}>
       <div className="die-visual">
         {chain.map((n, i) => (
-          <DieIcon key={i} die={die} value={n} aced={n === die} shaking size={36} />
+          <DieIcon key={i} die={die} value={n} aced={n === die} shaking size={30} />
         ))}
       </div>
       {chain.length > 1 && (
