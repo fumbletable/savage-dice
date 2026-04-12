@@ -1,18 +1,19 @@
-import { useState } from 'react';
-import { useObrReady, useRole } from './lib/obr';
+import { useEffect, useState } from 'react';
+import OBR from '@owlbear-rodeo/sdk';
+import { useObrReady, useSelf, BROADCAST_CHANNEL } from './lib/obr';
 import { rollTraitCheck, rollDamage, type DieType, type TraitResult, type DamageResult } from './lib/dice';
 import { DieIcon } from './lib/DieIcon';
 
 type Mode = 'trait' | 'damage';
 const DIE_OPTIONS: DieType[] = [4, 6, 8, 10, 12];
 
-interface TraitLog { kind: 'trait'; id: number; result: TraitResult; time: string }
-interface DamageLog { kind: 'damage'; id: number; result: DamageResult; time: string }
+interface TraitLog { kind: 'trait'; id: number; result: TraitResult; time: string; playerName: string; playerColor: string; private?: boolean }
+interface DamageLog { kind: 'damage'; id: number; result: DamageResult; time: string; playerName: string; playerColor: string; private?: boolean }
 type LogEntry = TraitLog | DamageLog;
 
 export default function App() {
   const ready = useObrReady();
-  const role = useRole(ready);
+  const self = useSelf(ready);
 
   const [mode, setMode] = useState<Mode>('trait');
   const [traitDie, setTraitDie] = useState<DieType>(8);
@@ -25,23 +26,52 @@ export default function App() {
   const [dmgMod, setDmgMod] = useState(0);
   const [bonusD6, setBonusD6] = useState(false);
 
+  // GM private toggle
+  const [privateRoll, setPrivateRoll] = useState(false);
+
   const [lastTrait, setLastTrait] = useState<TraitResult | null>(null);
   const [lastDamage, setLastDamage] = useState<DamageResult | null>(null);
   const [log, setLog] = useState<LogEntry[]>([]);
   const [shakeKey, setShakeKey] = useState(0);
 
-  if (!ready) return <div className="status">Connecting to Owlbear Rodeo…</div>;
-  if (!role) return <div className="status">Loading…</div>;
+  // Listen for broadcast rolls from other players
+  useEffect(() => {
+    if (!ready) return;
+    return OBR.broadcast.onMessage(BROADCAST_CHANNEL, (event) => {
+      const entry = event.data as LogEntry;
+      setLog((prev) => [entry, ...prev].slice(0, 20));
+    });
+  }, [ready]);
 
-  const pushLog = (entry: LogEntry) => setLog((prev) => [entry, ...prev].slice(0, 8));
+  if (!ready) return <div className="status">Connecting to Owlbear Rodeo…</div>;
+  if (!self) return <div className="status">Loading…</div>;
+
+  const role = self.role;
   const now = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const emit = (entry: LogEntry) => {
+    setLog((prev) => [entry, ...prev].slice(0, 20));
+    if (!entry.private) {
+      OBR.broadcast.sendMessage(BROADCAST_CHANNEL, entry as unknown as Record<string, unknown>, {
+        destination: 'REMOTE',
+      });
+    }
+  };
+
+  const baseMeta = () => ({
+    playerName: self.name,
+    playerColor: self.color,
+    private: role === 'GM' && privateRoll,
+    time: now(),
+    id: Date.now(),
+  });
 
   const handleTraitRoll = (wild: boolean) => {
     const result = rollTraitCheck({ traitDie, wild, modifier: modifier + mapPenalty, tn });
     setLastTrait(result);
     setLastDamage(null);
     setShakeKey((k) => k + 1);
-    pushLog({ kind: 'trait', id: Date.now(), result, time: now() });
+    emit({ kind: 'trait', result, ...baseMeta() });
   };
 
   const handleDamageRoll = () => {
@@ -49,7 +79,7 @@ export default function App() {
     setLastDamage(result);
     setLastTrait(null);
     setShakeKey((k) => k + 1);
-    pushLog({ kind: 'damage', id: Date.now(), result, time: now() });
+    emit({ kind: 'damage', result, ...baseMeta() });
   };
 
   const addDmgDie = () => setDmgDice((d) => (d.length < 4 ? [...d, 6] : d));
@@ -78,6 +108,17 @@ export default function App() {
           Damage
         </button>
       </div>
+
+      {role === 'GM' && (
+        <label className="private-toggle">
+          <input
+            type="checkbox"
+            checked={privateRoll}
+            onChange={(e) => setPrivateRoll(e.target.checked)}
+          />
+          <span>🔒 Private roll (hidden from players)</span>
+        </label>
+      )}
 
       {mode === 'trait' ? (
         <>
@@ -219,11 +260,19 @@ export default function App() {
 }
 
 function LogRow({ entry }: { entry: LogEntry }) {
+  const playerTag = (
+    <span className="log-player">
+      <span className="player-dot" style={{ background: entry.playerColor }} />
+      <span className="player-name">{entry.playerName}</span>
+      {entry.private && <span className="private-tag">🔒</span>}
+    </span>
+  );
   if (entry.kind === 'trait') {
     const r = entry.result;
     return (
       <div className="log-entry">
-        <span className="log-name">{r.wild ? 'Wild' : 'Extra'}</span>
+        {playerTag}
+        <span className="log-kind">{r.wild ? 'Wild' : 'Extra'}</span>
         <span className={`log-outcome ${traitOutcomeClass(r)}`}>{traitOutcomeLabel(r)}</span>
         <span className="log-total">{r.finalTotal}</span>
         <span className="log-time">{entry.time}</span>
@@ -232,7 +281,8 @@ function LogRow({ entry }: { entry: LogEntry }) {
   }
   return (
     <div className="log-entry">
-      <span className="log-name">Damage</span>
+      {playerTag}
+      <span className="log-kind">Dmg</span>
       <span className="log-outcome damage">{entry.result.dice.map((d) => `d${d.die}`).join('+')}</span>
       <span className="log-total">{entry.result.total}</span>
       <span className="log-time">{entry.time}</span>

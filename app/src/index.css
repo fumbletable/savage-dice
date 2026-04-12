@@ -377,13 +377,52 @@ h1 { font-size: 15px; margin: 0; font-weight: 600; }
 }
 .log-entry {
   display: grid;
-  grid-template-columns: 1fr auto auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto auto auto;
   gap: 8px;
   font-size: 12px;
   padding: 3px 0;
   align-items: center;
 }
-.log-name { color: #c8c8ce; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.log-player {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.player-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.player-name {
+  color: #c8c8ce;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+.private-tag { font-size: 10px; opacity: 0.7; }
+.log-kind {
+  font-size: 10px;
+  color: #8a8a90;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.private-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: rgba(232, 122, 122, 0.08);
+  border: 1px solid rgba(232, 122, 122, 0.25);
+  border-radius: 4px;
+  font-size: 11px;
+  color: #c8c8ce;
+  cursor: pointer;
+}
+.private-toggle input { margin: 0; }
 .log-outcome { font-size: 10px; font-weight: 600; letter-spacing: 0.04em; }
 .log-outcome.success { color: var(--green); }
 .log-outcome.raise { color: var(--gold); }
