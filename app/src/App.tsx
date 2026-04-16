@@ -47,6 +47,24 @@ export default function App() {
   const [log, setLog] = useState<LogEntry[]>([]);
   const [shakeKey, setShakeKey] = useState(0);
 
+  // Open the 3D dice overlay popover when panel first loads
+  useEffect(() => {
+    if (!ready) return;
+    OBR.popover.open({
+      id: 'com.fumbletable.savage-dice/overlay',
+      url: '/popover.html',
+      width: 0,
+      height: 0,
+      anchorOrigin: { horizontal: 'RIGHT', vertical: 'BOTTOM' },
+      transformOrigin: { horizontal: 'RIGHT', vertical: 'BOTTOM' },
+      disableClickAway: true,
+      hidePaper: true,
+      marginThreshold: 0,
+    }).catch(() => {
+      // Popover may already be open — ignore
+    });
+  }, [ready]);
+
   // Listen for broadcast rolls from other players
   useEffect(() => {
     if (!ready) return;
