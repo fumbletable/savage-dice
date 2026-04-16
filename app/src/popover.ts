@@ -22,7 +22,7 @@ async function init() {
     angularDamping: 0.4,
     linearDamping: 0.4,
     settleTimeout: 5000,
-    offscreen: true,
+    offscreen: false,
   });
   await Dice.init();
 }

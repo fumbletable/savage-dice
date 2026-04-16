@@ -6,7 +6,7 @@ OBR.onReady(async () => {
   // Open a zero-size transparent popover — it expands when dice are rolling
   await OBR.popover.open({
     id: POPOVER_ID,
-    url: '/popover.html',
+    url: 'https://fumbletable.github.io/savage-dice/popover.html?v=0.5.4',
     width: 0,
     height: 0,
     anchorOrigin: { horizontal: 'RIGHT', vertical: 'BOTTOM' },

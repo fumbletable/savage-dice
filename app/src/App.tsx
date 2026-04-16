@@ -64,7 +64,7 @@ export default function App() {
     if (!ready) return;
     OBR.popover.open({
       id: 'com.fumbletable.savage-dice/overlay',
-      url: 'https://fumbletable.github.io/savage-dice/popover.html',
+      url: 'https://fumbletable.github.io/savage-dice/popover.html?v=0.5.4',
       width: 1,
       height: 1,
       hidePaper: true,
