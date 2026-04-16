@@ -303,11 +303,11 @@ h1 { font-size: 15px; margin: 0; font-weight: 600; }
 }
 
 .chain-math {
-  font-size: 13px;
+  font-size: 15px;
   color: #c8c8ce;
 }
 .chain-math.single { color: #8a8a90; }
-.chain-math strong { color: #e8e8ea; font-weight: 700; font-size: 15px; }
+.chain-math strong { color: #e8e8ea; font-weight: 700; font-size: 20px; }
 .die-chain.aced .chain-math strong { color: var(--gold); }
 
 .best-tag {
@@ -353,23 +353,23 @@ h1 { font-size: 15px; margin: 0; font-weight: 600; }
   color: #c8c8ce;
 }
 .calc strong { color: #e8e8ea; }
-.calc .final { color: var(--gold); font-size: 16px; }
+.calc .final { color: var(--gold); font-size: 22px; }
 .mod-plus { color: var(--green); }
 .mod-minus { color: var(--red); }
 
 .banner {
-  padding: 8px 10px;
+  padding: 10px 10px;
   border-radius: 4px;
   text-align: center;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 20px;
   letter-spacing: 0.04em;
 }
 .banner.success { background: #1f3a22; color: var(--green); }
 .banner.raise { background: #3a2e12; color: var(--gold); }
 .banner.fail { background: #2e2e33; color: #a8a8ae; }
 .banner.crit { background: #3a1f1f; color: var(--red); }
-.banner.damage-banner { background: #3a1f1f; color: var(--red); font-size: 16px; }
+.banner.damage-banner { background: #3a1f1f; color: var(--red); font-size: 20px; }
 
 /* Log */
 .log {

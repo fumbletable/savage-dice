@@ -125,10 +125,9 @@ This extension does all of that. Designed to work standalone OR optionally along
 
 ### Tier 3 — v0.3 (integration with Savage Deck)
 
-- Savage Deck adds a "Roll" button per combatant
-- Clicking it opens Savage Dice panel, prefilled with combatant name as trait name
-- Later: Savage Deck combatants store trait dice (requires Combat Sheet or similar data source)
-- Spend benny to reroll (only relevant if bennies tracked somewhere — v3+)
+- **Damage → wounds:** Dice rolls damage, broadcasts result to Deck, Deck applies wounds against combatant's Toughness
+- **Toughness as target:** Deck passes a combatant's Toughness to Dice for damage calculation context
+- Note: trait dice are NOT pulled from Deck — those live on character sheets, not tokens. Deck has no character data.
 
 ### Tier 4+ (nice-to-haves, not committed)
 
@@ -136,6 +135,8 @@ This extension does all of that. Designed to work standalone OR optionally along
 - Character preset save (Fighting d8, Shooting d10, etc. saved per player)
 - Macro library for common rolls
 - Multi-target resolution (roll one trait die against multiple targets, damage against multiple Toughness values)
+- **Bigger result text / bottom-screen popup** (2026-04-15, from Scott chat) — current roll output too small; consider dddice-style bottom-of-screen popover or larger result display. Scott still tempted by dddice purely for readability. Addressed by 3D dice work (v0.5+).
+- **Wound calculator** — moved to Savage Deck (2026-04-16). Deck owns combat stats; natural home is there.
 
 ## Architecture
 

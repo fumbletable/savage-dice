@@ -339,7 +339,7 @@ function DieChain({
     <div className={`die-chain ${aced ? 'aced' : ''}`}>
       <div className="die-visual">
         {chain.map((n, i) => (
-          <DieIcon key={i} die={die} value={n} aced={n === die} shaking size={30} />
+          <DieIcon key={i} die={die} value={n} aced={n === die} shaking size={40} />
         ))}
       </div>
       {chain.length > 1 && (
