@@ -3,12 +3,12 @@
   "name": "Savage Dice",
   "description": "SWADE-aware dice roller for Savage Worlds. Handles exploding aces, Wild Die, raises, and critical failures.",
   "author": "Fumble Table",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "icon": "https://fumbletable.github.io/savage-dice/icon.svg",
   "action": {
     "title": "Savage Dice",
     "icon": "https://fumbletable.github.io/savage-dice/icon.svg",
-    "popover": "https://fumbletable.github.io/savage-dice/index.html?v=0.5.0",
+    "popover": "https://fumbletable.github.io/savage-dice/index.html?v=0.5.1",
     "height": 720,
     "width": 380
   }
