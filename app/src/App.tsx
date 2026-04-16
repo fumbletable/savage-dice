@@ -64,18 +64,10 @@ export default function App() {
     if (!ready) return;
     OBR.popover.open({
       id: 'com.fumbletable.savage-dice/overlay',
-      url: import.meta.env.DEV
-        ? 'https://localhost:5174/popover.html'
-        : 'https://fumbletable.github.io/savage-dice/popover.html',
-      width: 0,
-      height: 0,
-      anchorOrigin: { horizontal: 'RIGHT', vertical: 'BOTTOM' },
-      transformOrigin: { horizontal: 'RIGHT', vertical: 'BOTTOM' },
-      disableClickAway: true,
-      hidePaper: true,
-      marginThreshold: 0,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any).catch(() => { /* already open */ });
+      url: 'https://fumbletable.github.io/savage-dice/popover.html',
+      width: 1,
+      height: 1,
+    }).catch(() => { /* already open */ });
   }, [ready]);
 
   // Listen for 3D dice results from overlay popover
@@ -176,7 +168,7 @@ export default function App() {
   return (
     <div className="panel">
       <header>
-        <h1>Savage Dice <span style={{fontSize:'10px',opacity:0.4,fontWeight:400}}>v0.5.1</span></h1>
+        <h1>Savage Dice <span style={{fontSize:'10px',opacity:0.4,fontWeight:400}}>v0.5.2</span></h1>
         <div className="header-right">
           <button className="sound-btn" onClick={toggleSound} title={soundOn ? 'Sound on' : 'Sound off'}>
             {soundOn ? '🔊' : '🔇'}

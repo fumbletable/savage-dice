@@ -3,26 +3,27 @@ import DiceBox from '@3d-dice/dice-box';
 
 import { ROLL_REQUEST_CHANNEL, ROLL_RESULT_CHANNEL } from './lib/channels';
 
-const Dice = new DiceBox({
-  assetPath: '/assets/',
-  container: '#dice-canvas',
-  theme: 'default',
-  scale: 7,
-  gravity: 1,
-  mass: 1,
-  friction: 0.8,
-  restitution: 0.5,
-  angularDamping: 0.4,
-  linearDamping: 0.4,
-  settleTimeout: 5000,
-  offscreen: true,
-});
-
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let Dice: any = null;
 let initialized = false;
 
 async function init() {
   if (initialized) return;
   initialized = true;
+  Dice = new DiceBox({
+    assetPath: '/assets/',
+    container: '#dice-canvas',
+    theme: 'default',
+    scale: 7,
+    gravity: 1,
+    mass: 1,
+    friction: 0.8,
+    restitution: 0.5,
+    angularDamping: 0.4,
+    linearDamping: 0.4,
+    settleTimeout: 5000,
+    offscreen: true,
+  });
   await Dice.init();
 }
 
