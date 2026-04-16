@@ -88,3 +88,58 @@ export function rollDamage({ dice, modifier, bonusD6 }: DamageInput): DamageResu
   const total = rolls.reduce((a, r) => a + r.total, 0) + modifier;
   return { dice: rolls, modifier, total };
 }
+
+// --- 3D dice: process pre-rolled chains from dice-box ---
+
+export interface ChainInput {
+  die: DieType;
+  chain: number[];
+}
+
+export function processTraitRoll(
+  traitInput: ChainInput,
+  wildInput: ChainInput | null,
+  modifier: number,
+  tn: number
+): TraitResult {
+  const trait: DieRoll = {
+    die: traitInput.die,
+    chain: traitInput.chain,
+    total: traitInput.chain.reduce((a, b) => a + b, 0),
+    aced: traitInput.chain.length > 1,
+  };
+
+  const wildRoll: DieRoll | null = wildInput
+    ? {
+        die: wildInput.die,
+        chain: wildInput.chain,
+        total: wildInput.chain.reduce((a, b) => a + b, 0),
+        aced: wildInput.chain.length > 1,
+      }
+    : null;
+
+  const traitFinal = trait.total + modifier;
+  const wildFinal = wildRoll ? wildRoll.total + modifier : -Infinity;
+  const best: 'trait' | 'wild' = wildRoll && wildFinal > traitFinal ? 'wild' : 'trait';
+  const finalTotal = best === 'wild' ? wildFinal : traitFinal;
+
+  const criticalFailure = wildRoll
+    ? traitInput.chain[0] === 1 && wildInput!.chain[0] === 1
+    : false;
+
+  const success = !criticalFailure && finalTotal >= tn;
+  const raises = success ? Math.floor((finalTotal - tn) / 4) : 0;
+
+  return { trait, wild: wildRoll, modifier, tn, best, finalTotal, success, raises, criticalFailure };
+}
+
+export function processDamageRoll(inputs: ChainInput[], modifier: number): DamageResult {
+  const dice: DieRoll[] = inputs.map(({ die, chain }) => ({
+    die,
+    chain,
+    total: chain.reduce((a, b) => a + b, 0),
+    aced: chain.length > 1,
+  }));
+  const total = dice.reduce((a, r) => a + r.total, 0) + modifier;
+  return { dice, modifier, total };
+}

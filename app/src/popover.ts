@@ -1,10 +1,10 @@
 import OBR from '@owlbear-rodeo/sdk';
 import DiceBox from '@3d-dice/dice-box';
 
+export const ROLL_REQUEST_CHANNEL = 'com.fumbletable.savage-dice/roll-request';
+export const ROLL_RESULT_CHANNEL = 'com.fumbletable.savage-dice/roll-result';
 const POPOVER_ID = 'com.fumbletable.savage-dice/overlay';
-const ROLL_CHANNEL = 'com.fumbletable.savage-dice/roll';
 
-// Init at module level — avoids React StrictMode double-init
 const Dice = new DiceBox({
   assetPath: '/assets/',
   container: '#dice-canvas',
@@ -28,31 +28,109 @@ async function init() {
   await Dice.init();
 }
 
+// Roll a single die and follow the ace chain until it stops
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function rollWithAces(sides: number, firstResult: any): Promise<number[]> {
+  const chain: number[] = [firstResult.value];
+  let current = firstResult;
+  while (current.value === current.sides && chain.length < 20) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const extra = await (Dice as any).add([{ qty: 1, sides }]);
+    const die = extra[0].rolls ? extra[0].rolls[0] : extra[0];
+    chain.push(die.value);
+    current = die;
+  }
+  return chain;
+}
+
 OBR.onReady(async () => {
   await init();
 
-  // Listen for roll requests broadcast from the action popover
-  OBR.broadcast.onMessage(ROLL_CHANNEL, async (event) => {
-    const { dice } = event.data as { dice: { qty: number; sides: number }[] };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  OBR.broadcast.onMessage(ROLL_REQUEST_CHANNEL, async (event: any) => {
+    const req = event.data as {
+      type: 'trait' | 'damage';
+      traitDie?: number;
+      wild?: boolean;
+      damageDice?: number[];
+      modifier?: number;
+    };
 
-    // Expand overlay to full screen
-    await OBR.popover.setWidth(POPOVER_ID, window.screen.width);
-    await OBR.popover.setHeight(POPOVER_ID, window.screen.height);
+    // Expand overlay to fill screen
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (OBR.popover as any).setWidth(POPOVER_ID, 2000);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (OBR.popover as any).setHeight(POPOVER_ID, 2000);
+    } catch {
+      // setWidth/setHeight may not exist in all SDK versions — overlay was opened large
+    }
 
     Dice.clear();
-    const results = await Dice.roll(dice);
 
-    // Broadcast results back to the action popover for SWADE logic
-    OBR.broadcast.sendMessage(
-      `${ROLL_CHANNEL}/result`,
-      results as unknown as Record<string, unknown>,
-      { destination: 'LOCAL' }
-    );
+    if (req.type === 'trait') {
+      const dicesToRoll = [{ qty: 1, sides: req.traitDie! }];
+      if (req.wild) dicesToRoll.push({ qty: 1, sides: 6 });
 
-    // Collapse overlay after dice settle
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const results: any[] = await (Dice as any).roll(dicesToRoll);
+
+      // Extract first die values from each group
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const getDie = (group: any) => group.rolls ? group.rolls[0] : group;
+
+      const traitDie = getDie(results[0]);
+      const wildDie = req.wild ? getDie(results[1]) : null;
+
+      // Follow ace chains
+      const traitChain = await rollWithAces(req.traitDie!, traitDie);
+      const wildChain = wildDie ? await rollWithAces(6, wildDie) : null;
+
+      OBR.broadcast.sendMessage(
+        ROLL_RESULT_CHANNEL,
+        {
+          type: 'trait',
+          traitDie: req.traitDie,
+          traitChain,
+          wildChain,
+        } as unknown as Record<string, unknown>,
+        { destination: 'LOCAL' }
+      );
+    }
+
+    if (req.type === 'damage') {
+      const dicesToRoll = (req.damageDice ?? []).map((s: number) => ({ qty: 1, sides: s }));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const results: any[] = await (Dice as any).roll(dicesToRoll);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const getDie = (group: any) => group.rolls ? group.rolls[0] : group;
+
+      const chains: { die: number; chain: number[] }[] = [];
+      for (let i = 0; i < results.length; i++) {
+        const sides = req.damageDice![i];
+        const chain = await rollWithAces(sides, getDie(results[i]));
+        chains.push({ die: sides, chain });
+      }
+
+      OBR.broadcast.sendMessage(
+        ROLL_RESULT_CHANNEL,
+        {
+          type: 'damage',
+          chains,
+        } as unknown as Record<string, unknown>,
+        { destination: 'LOCAL' }
+      );
+    }
+
+    // Shrink overlay after dice settle
     setTimeout(async () => {
-      await OBR.popover.setWidth(POPOVER_ID, 0);
-      await OBR.popover.setHeight(POPOVER_ID, 0);
-    }, 5000);
+      Dice.clear();
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (OBR.popover as any).setWidth(POPOVER_ID, 0);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (OBR.popover as any).setHeight(POPOVER_ID, 0);
+      } catch { /* ignore */ }
+    }, 6000);
   });
 });

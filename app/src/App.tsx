@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import OBR from '@owlbear-rodeo/sdk';
 import { useObrReady, useSelf, BROADCAST_CHANNEL } from './lib/obr';
-import { rollTraitCheck, rollDamage, type DieType, type TraitResult, type DamageResult } from './lib/dice';
+import { processTraitRoll, processDamageRoll, type DieType, type TraitResult, type DamageResult, type ChainInput } from './lib/dice';
 import { DieIcon } from './lib/DieIcon';
 import { playSound } from './lib/sounds';
+import { ROLL_REQUEST_CHANNEL, ROLL_RESULT_CHANNEL } from './popover';
 
 type Mode = 'trait' | 'damage';
 const DIE_OPTIONS: DieType[] = [4, 6, 8, 10, 12];
@@ -46,13 +47,26 @@ export default function App() {
   const [lastDamage, setLastDamage] = useState<DamageResult | null>(null);
   const [log, setLog] = useState<LogEntry[]>([]);
   const [shakeKey, setShakeKey] = useState(0);
+  const [rolling, setRolling] = useState(false);
+
+  // Store pending roll config so the result handler can access current values
+  const pendingRoll = useRef<{
+    type: 'trait' | 'damage';
+    traitDie?: DieType;
+    wild?: boolean;
+    modifier?: number;
+    tn?: number;
+    dmgMod?: number;
+  } | null>(null);
 
   // Open the 3D dice overlay popover when panel first loads
   useEffect(() => {
     if (!ready) return;
     OBR.popover.open({
       id: 'com.fumbletable.savage-dice/overlay',
-      url: '/popover.html',
+      url: import.meta.env.DEV
+        ? 'https://localhost:5174/popover.html'
+        : 'https://fumbletable.github.io/savage-dice/popover.html',
       width: 0,
       height: 0,
       anchorOrigin: { horizontal: 'RIGHT', vertical: 'BOTTOM' },
@@ -60,10 +74,46 @@ export default function App() {
       disableClickAway: true,
       hidePaper: true,
       marginThreshold: 0,
-    }).catch(() => {
-      // Popover may already be open — ignore
-    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any).catch(() => { /* already open */ });
   }, [ready]);
+
+  // Listen for 3D dice results from overlay popover
+  useEffect(() => {
+    if (!ready) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return OBR.broadcast.onMessage(ROLL_RESULT_CHANNEL, (event: any) => {
+      const data = event.data as Record<string, unknown>;
+      const pending = pendingRoll.current;
+      if (!pending) return;
+      setRolling(false);
+      setShakeKey((k) => k + 1);
+      playSound('shake', soundOn);
+
+      if (data.type === 'trait' && pending.type === 'trait') {
+        const traitChain = data.traitChain as number[];
+        const wildChain = data.wildChain as number[] | null;
+        const traitInput: ChainInput = { die: pending.traitDie!, chain: traitChain };
+        const wildInput: ChainInput | null = wildChain ? { die: 6, chain: wildChain } : null;
+        const result = processTraitRoll(traitInput, wildInput, pending.modifier ?? 0, pending.tn ?? 4);
+        setLastTrait(result);
+        setLastDamage(null);
+        emit({ kind: 'trait', result, ...baseMeta() });
+      }
+
+      if (data.type === 'damage' && pending.type === 'damage') {
+        const chains = data.chains as { die: number; chain: number[] }[];
+        const inputs: ChainInput[] = chains.map(c => ({ die: c.die as DieType, chain: c.chain }));
+        const result = processDamageRoll(inputs, pending.dmgMod ?? 0);
+        setLastDamage(result);
+        setLastTrait(null);
+        emit({ kind: 'damage', result, ...baseMeta() });
+      }
+
+      pendingRoll.current = null;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, soundOn]);
 
   // Listen for broadcast rolls from other players
   useEffect(() => {
@@ -98,21 +148,24 @@ export default function App() {
   });
 
   const handleTraitRoll = (wild: boolean) => {
-    const result = rollTraitCheck({ traitDie, wild, modifier: modifier + mapPenalty, tn });
-    setLastTrait(result);
-    setLastDamage(null);
-    setShakeKey((k) => k + 1);
-    playSound('shake', soundOn);
-    emit({ kind: 'trait', result, ...baseMeta() });
+    const totalMod = modifier + mapPenalty;
+    pendingRoll.current = { type: 'trait', traitDie, wild, modifier: totalMod, tn };
+    setRolling(true);
+    OBR.broadcast.sendMessage(
+      ROLL_REQUEST_CHANNEL,
+      { type: 'trait', traitDie, wild, modifier: totalMod, tn } as unknown as Record<string, unknown>,
+      { destination: 'LOCAL' }
+    );
   };
 
   const handleDamageRoll = () => {
-    const result = rollDamage({ dice: dmgDice, modifier: dmgMod, bonusD6 });
-    setLastDamage(result);
-    setLastTrait(null);
-    setShakeKey((k) => k + 1);
-    playSound('shake', soundOn);
-    emit({ kind: 'damage', result, ...baseMeta() });
+    pendingRoll.current = { type: 'damage', dmgMod };
+    setRolling(true);
+    OBR.broadcast.sendMessage(
+      ROLL_REQUEST_CHANNEL,
+      { type: 'damage', damageDice: dmgDice, modifier: dmgMod, bonusD6 } as unknown as Record<string, unknown>,
+      { destination: 'LOCAL' }
+    );
   };
 
   const addDmgDie = () => setDmgDice((d) => (d.length < 4 ? [...d, 6] : d));
@@ -211,12 +264,12 @@ export default function App() {
             </div>
 
             <div className="roll-pair">
-              <button className="roll-btn wild" onClick={() => handleTraitRoll(true)}>
-                Roll Wild
+              <button className="roll-btn wild" onClick={() => handleTraitRoll(true)} disabled={rolling}>
+                {rolling ? 'Rolling…' : 'Roll Wild'}
                 <span className="hint">trait + d6</span>
               </button>
-              <button className="roll-btn extra" onClick={() => handleTraitRoll(false)}>
-                Roll Extra
+              <button className="roll-btn extra" onClick={() => handleTraitRoll(false)} disabled={rolling}>
+                {rolling ? '…' : 'Roll Extra'}
                 <span className="hint">trait only</span>
               </button>
             </div>
@@ -276,8 +329,8 @@ export default function App() {
               </label>
             </div>
 
-            <button className="roll-btn damage" onClick={handleDamageRoll}>
-              Roll Damage
+            <button className="roll-btn damage" onClick={handleDamageRoll} disabled={rolling}>
+              {rolling ? 'Rolling…' : 'Roll Damage'}
             </button>
           </div>
 
