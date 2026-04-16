@@ -5,26 +5,46 @@ import { ROLL_REQUEST_CHANNEL, ROLL_RESULT_CHANNEL } from './lib/channels';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let Dice: any = null;
-let initialized = false;
+let diceBoxAvailable = false;
 
 async function init() {
-  if (initialized) return;
-  initialized = true;
-  Dice = new DiceBox({
-    assetPath: 'https://fumbletable.github.io/savage-dice/assets/',
-    container: '#dice-canvas',
-    theme: 'default',
-    scale: 7,
-    gravity: 1,
-    mass: 1,
-    friction: 0.8,
-    restitution: 0.5,
-    angularDamping: 0.4,
-    linearDamping: 0.4,
-    settleTimeout: 5000,
-    offscreen: false,
-  });
-  await Dice.init();
+  try {
+    Dice = new DiceBox({
+      assetPath: 'https://fumbletable.github.io/savage-dice/assets/',
+      container: '#dice-canvas',
+      theme: 'default',
+      scale: 7,
+      gravity: 1,
+      mass: 1,
+      friction: 0.8,
+      restitution: 0.5,
+      angularDamping: 0.4,
+      linearDamping: 0.4,
+      settleTimeout: 5000,
+      offscreen: false,
+    });
+    await Dice.init();
+    diceBoxAvailable = true;
+  } catch (err) {
+    console.warn('[savage-dice] DiceBox init failed, using fallback RNG:', err);
+    diceBoxAvailable = false;
+  }
+}
+
+// Fallback: roll a single die using Math.random()
+function rollFallback(sides: number): number {
+  return Math.floor(Math.random() * sides) + 1;
+}
+
+// Follow ace chains using fallback RNG
+function rollWithAcesFallback(sides: number, first: number): number[] {
+  const chain: number[] = [first];
+  let current = first;
+  while (current === sides && chain.length < 20) {
+    current = rollFallback(sides);
+    chain.push(current);
+  }
+  return chain;
 }
 
 // Roll a single die and follow the ace chain until it stops
@@ -55,29 +75,41 @@ OBR.onReady(async () => {
       modifier?: number;
     };
 
-    // Show canvas
-    const canvas = document.getElementById('dice-canvas');
-    if (canvas) canvas.classList.add('active');
-
-    Dice.clear();
+    // Show canvas (only if dice-box is working)
+    if (diceBoxAvailable) {
+      const canvas = document.getElementById('dice-canvas');
+      if (canvas) canvas.classList.add('active');
+      Dice.clear();
+    }
 
     if (req.type === 'trait') {
-      const dicesToRoll = [{ qty: 1, sides: req.traitDie! }];
-      if (req.wild) dicesToRoll.push({ qty: 1, sides: 6 });
+      let traitChain: number[];
+      let wildChain: number[] | null = null;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const results: any[] = await (Dice as any).roll(dicesToRoll);
+      if (diceBoxAvailable) {
+        const dicesToRoll = [{ qty: 1, sides: req.traitDie! }];
+        if (req.wild) dicesToRoll.push({ qty: 1, sides: 6 });
 
-      // Extract first die values from each group
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const getDie = (group: any) => group.rolls ? group.rolls[0] : group;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const results: any[] = await (Dice as any).roll(dicesToRoll);
 
-      const traitDie = getDie(results[0]);
-      const wildDie = req.wild ? getDie(results[1]) : null;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const getDie = (group: any) => group.rolls ? group.rolls[0] : group;
 
-      // Follow ace chains
-      const traitChain = await rollWithAces(req.traitDie!, traitDie);
-      const wildChain = wildDie ? await rollWithAces(6, wildDie) : null;
+        const traitDie = getDie(results[0]);
+        const wildDie = req.wild ? getDie(results[1]) : null;
+
+        traitChain = await rollWithAces(req.traitDie!, traitDie);
+        wildChain = wildDie ? await rollWithAces(6, wildDie) : null;
+      } else {
+        // Fallback: use Math.random()
+        const first = rollFallback(req.traitDie!);
+        traitChain = rollWithAcesFallback(req.traitDie!, first);
+        if (req.wild) {
+          const wildFirst = rollFallback(6);
+          wildChain = rollWithAcesFallback(6, wildFirst);
+        }
+      }
 
       OBR.broadcast.sendMessage(
         ROLL_RESULT_CHANNEL,
@@ -92,17 +124,26 @@ OBR.onReady(async () => {
     }
 
     if (req.type === 'damage') {
-      const dicesToRoll = (req.damageDice ?? []).map((s: number) => ({ qty: 1, sides: s }));
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const results: any[] = await (Dice as any).roll(dicesToRoll);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const getDie = (group: any) => group.rolls ? group.rolls[0] : group;
-
       const chains: { die: number; chain: number[] }[] = [];
-      for (let i = 0; i < results.length; i++) {
-        const sides = req.damageDice![i];
-        const chain = await rollWithAces(sides, getDie(results[i]));
-        chains.push({ die: sides, chain });
+
+      if (diceBoxAvailable) {
+        const dicesToRoll = (req.damageDice ?? []).map((s: number) => ({ qty: 1, sides: s }));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const results: any[] = await (Dice as any).roll(dicesToRoll);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const getDie = (group: any) => group.rolls ? group.rolls[0] : group;
+
+        for (let i = 0; i < results.length; i++) {
+          const sides = req.damageDice![i];
+          const chain = await rollWithAces(sides, getDie(results[i]));
+          chains.push({ die: sides, chain });
+        }
+      } else {
+        // Fallback: use Math.random()
+        for (const sides of (req.damageDice ?? [])) {
+          const first = rollFallback(sides);
+          chains.push({ die: sides, chain: rollWithAcesFallback(sides, first) });
+        }
       }
 
       OBR.broadcast.sendMessage(
@@ -115,11 +156,13 @@ OBR.onReady(async () => {
       );
     }
 
-    // Hide canvas after dice settle
-    setTimeout(() => {
-      Dice.clear();
-      const canvas = document.getElementById('dice-canvas');
-      if (canvas) canvas.classList.remove('active');
-    }, 6000);
+    // Hide canvas after dice settle (only if dice-box was used)
+    if (diceBoxAvailable) {
+      setTimeout(() => {
+        Dice.clear();
+        const canvas = document.getElementById('dice-canvas');
+        if (canvas) canvas.classList.remove('active');
+      }, 6000);
+    }
   });
 });
