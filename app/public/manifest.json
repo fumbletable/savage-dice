@@ -8,7 +8,7 @@
   "action": {
     "title": "Savage Dice",
     "icon": "https://fumbletable.github.io/savage-dice/icon.svg",
-    "popover": "https://fumbletable.github.io/savage-dice/index.html",
+    "popover": "https://fumbletable.github.io/savage-dice/index.html?v=0.5.4",
     "height": 720,
     "width": 380
   }
