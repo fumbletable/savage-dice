@@ -4,7 +4,7 @@ import { useObrReady, useSelf, BROADCAST_CHANNEL } from './lib/obr';
 import { processTraitRoll, processDamageRoll, type DieType, type TraitResult, type DamageResult, type ChainInput } from './lib/dice';
 import { DieIcon } from './lib/DieIcon';
 import { playSound } from './lib/sounds';
-import { ROLL_REQUEST_CHANNEL, ROLL_RESULT_CHANNEL } from './popover';
+import { ROLL_REQUEST_CHANNEL, ROLL_RESULT_CHANNEL } from './lib/channels';
 
 type Mode = 'trait' | 'damage';
 const DIE_OPTIONS: DieType[] = [4, 6, 8, 10, 12];
@@ -176,7 +176,7 @@ export default function App() {
   return (
     <div className="panel">
       <header>
-        <h1>Savage Dice <span style={{fontSize:'10px',opacity:0.4,fontWeight:400}}>v0.5</span></h1>
+        <h1>Savage Dice <span style={{fontSize:'10px',opacity:0.4,fontWeight:400}}>v0.5.1</span></h1>
         <div className="header-right">
           <button className="sound-btn" onClick={toggleSound} title={soundOn ? 'Sound on' : 'Sound off'}>
             {soundOn ? '🔊' : '🔇'}

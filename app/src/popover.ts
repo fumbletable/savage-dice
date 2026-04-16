@@ -1,8 +1,7 @@
 import OBR from '@owlbear-rodeo/sdk';
 import DiceBox from '@3d-dice/dice-box';
 
-export const ROLL_REQUEST_CHANNEL = 'com.fumbletable.savage-dice/roll-request';
-export const ROLL_RESULT_CHANNEL = 'com.fumbletable.savage-dice/roll-result';
+import { ROLL_REQUEST_CHANNEL, ROLL_RESULT_CHANNEL } from './lib/channels';
 
 const Dice = new DiceBox({
   assetPath: '/assets/',
