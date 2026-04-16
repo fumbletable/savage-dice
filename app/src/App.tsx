@@ -105,7 +105,7 @@ export default function App() {
   return (
     <div className="panel">
       <header>
-        <h1>Savage Dice</h1>
+        <h1>Savage Dice <span style={{fontSize:'10px',opacity:0.4,fontWeight:400}}>v0.5.0</span></h1>
         <div className="header-right">
           <button className="sound-btn" onClick={toggleSound} title={soundOn ? 'Sound on' : 'Sound off'}>
             {soundOn ? '🔊' : '🔇'}
