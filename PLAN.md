@@ -82,6 +82,73 @@ This extension does all of that. Designed to work standalone OR optionally along
 - Critical failures cannot be rerolled.
 - Damage rerolls don't add Wild Die (they're not Trait rolls).
 
+## 3D Dice Implementation Plan (v0.5) — feat/3d-dice branch
+
+### Architecture
+
+dice-box handles all randomness and visuals. dice.ts becomes the SWADE logic layer that processes dice-box results — not the random number generator.
+
+**Flow:**
+1. User clicks Roll
+2. dice-box throws both trait die + wild die on the OBR map simultaneously
+3. dice-box returns results (e.g. trait=8, wild=3)
+4. Check for aces: if trait=8 (max), call `diceBox.add()` → new die physically spawns and rolls
+5. Repeat until no more aces on either chain
+6. Feed all chain values into dice.ts for SWADE logic (take-best, raises, critical failure)
+7. Result banner appears over the dice
+
+**The visual:** both dice land on the map together. If either aces, new dice spawn physically. On a hot roll you could see 4-5 dice on the table — the original die showing max, a new die, wild die showing max, a new wild die.
+
+### Phase 1 — Setup (~2-3 hours)
+
+- [ ] Create `feat/3d-dice` branch
+- [ ] `npm install @3d-dice/dice-box @3d-dice/dice-roller-parser`
+- [ ] Copy dice-box assets to `app/public/assets/` (postinstall script handles this)
+- [ ] Add TypeScript type declarations for dice-box (no official types)
+- [ ] Add second Rollup entry points to `vite.config.ts`: `background.html` + `popover.html`
+- [ ] Create `background.html` — opens zero-size OBR popover on load
+- [ ] Create `popover.html` — full-screen transparent canvas, pointer-events: none
+- [ ] Init dice-box at module level (outside React component, avoid StrictMode double-init)
+- [ ] Confirm dice roll + physics visible over OBR map
+
+### Phase 2 — SWADE Dice Logic (~2-3 hours)
+
+- [ ] Roll trait die + wild die together: `diceBox.roll([{qty:1, sides:N}, {qty:1, sides:6}])`
+- [ ] On result, check each die for ace (value === sides)
+- [ ] If ace: `diceBox.add([{qty:1, sides:N}])` — new die spawns physically
+- [ ] Chain until no more aces on either die independently
+- [ ] Feed complete chains into existing `rollTraitCheck()` in dice.ts
+- [ ] Result banner appears below dice with outcome (Success / +N raises / Failed / CRIT FAIL)
+- [ ] Damage mode: roll all damage dice together, sum via dice.ts
+
+### Phase 3 — Polish (~1-2 hours)
+
+- [ ] Dice clear after ~4 seconds (or tap to dismiss)
+- [ ] Result banner stays visible until next roll
+- [ ] Sound events hook into dice-box callbacks (replace current shake sound)
+- [ ] GM private roll: dice don't broadcast visually to players, result still shows locally
+- [ ] Test in real OBR session with Scott
+
+### Dev workflow
+
+```bash
+git checkout -b feat/3d-dice
+cd app && npm run dev
+# In OBR settings: add extension → http://localhost:5173/manifest.json
+# Test alongside live version (Scott keeps live, Damien tests on localhost)
+```
+
+When ready: merge to main → GitHub Actions deploys → live.
+
+### Known constraints
+
+- Physics roll is always random — dice-box IS the random source, not dice.ts
+- No predetermined visual results (the 3D roll is real)
+- WASM assets must be in `public/assets/` — 404s produce cryptic errors
+- TypeScript types are manual declarations only
+
+---
+
 ## Tiered feature scope
 
 ### Tier 1 — v0.1 (ship this first, ~4-5 hours)
