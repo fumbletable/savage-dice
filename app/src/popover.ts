@@ -3,7 +3,6 @@ import DiceBox from '@3d-dice/dice-box';
 
 export const ROLL_REQUEST_CHANNEL = 'com.fumbletable.savage-dice/roll-request';
 export const ROLL_RESULT_CHANNEL = 'com.fumbletable.savage-dice/roll-result';
-const POPOVER_ID = 'com.fumbletable.savage-dice/overlay';
 
 const Dice = new DiceBox({
   assetPath: '/assets/',
@@ -56,15 +55,9 @@ OBR.onReady(async () => {
       modifier?: number;
     };
 
-    // Expand overlay to fill screen
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (OBR.popover as any).setWidth(POPOVER_ID, 2000);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (OBR.popover as any).setHeight(POPOVER_ID, 2000);
-    } catch {
-      // setWidth/setHeight may not exist in all SDK versions — overlay was opened large
-    }
+    // Show canvas
+    const canvas = document.getElementById('dice-canvas');
+    if (canvas) canvas.classList.add('active');
 
     Dice.clear();
 
@@ -122,15 +115,11 @@ OBR.onReady(async () => {
       );
     }
 
-    // Shrink overlay after dice settle
-    setTimeout(async () => {
+    // Hide canvas after dice settle
+    setTimeout(() => {
       Dice.clear();
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (OBR.popover as any).setWidth(POPOVER_ID, 0);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (OBR.popover as any).setHeight(POPOVER_ID, 0);
-      } catch { /* ignore */ }
+      const canvas = document.getElementById('dice-canvas');
+      if (canvas) canvas.classList.remove('active');
     }, 6000);
   });
 });
