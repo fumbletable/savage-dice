@@ -11,7 +11,7 @@ async function init() {
   if (initialized) return;
   initialized = true;
   Dice = new DiceBox({
-    assetPath: '/assets/',
+    assetPath: 'https://fumbletable.github.io/savage-dice/assets/',
     container: '#dice-canvas',
     theme: 'default',
     scale: 7,

@@ -59,7 +59,17 @@ export default function App() {
     dmgMod?: number;
   } | null>(null);
 
-  // TODO: open 3D overlay popover on first roll
+  // Open the 3D dice overlay popover when panel first loads
+  useEffect(() => {
+    if (!ready) return;
+    OBR.popover.open({
+      id: 'com.fumbletable.savage-dice/overlay',
+      url: 'https://fumbletable.github.io/savage-dice/popover.html',
+      width: 1,
+      height: 1,
+      hidePaper: true,
+    }).catch(() => { /* already open */ });
+  }, [ready]);
 
   // Listen for 3D dice results from overlay popover
   useEffect(() => {
@@ -159,7 +169,7 @@ export default function App() {
   return (
     <div className="panel">
       <header>
-        <h1>Savage Dice <span style={{fontSize:'10px',opacity:0.4,fontWeight:400}}>v0.5.3</span></h1>
+        <h1>Savage Dice <span style={{fontSize:'10px',opacity:0.4,fontWeight:400}}>v0.5.4</span></h1>
         <div className="header-right">
           <button className="sound-btn" onClick={toggleSound} title={soundOn ? 'Sound on' : 'Sound off'}>
             {soundOn ? '🔊' : '🔇'}
